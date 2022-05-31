@@ -6,24 +6,18 @@ from scipy.stats import norm, chi2
 
 
 
-# generator specified for our paper model
-def data_generator(SAMPLE_AMOUNT, SIGMA = 1, seedCode = 100, b2_effect=False):
+def data_generator_X2(SAMPLE_AMOUNT, SIGMA = 1, seedCode = 100):
     B1 = np.array([
         [2,1],
         [3,2],
         [1,0],
         [0,1]
     ])
-    if not b2_effect:
-        B2 = np.array([
-            [0,0],
-            [0,0]
-        ])
-    else:
-        B2 = np.array([
-            [0.1,0],
-            [0.1,0.2]
-        ])
+    
+    B2 = np.array([
+        [0.04,0],
+        [0.04,0.08]
+    ])
 
     H = np.array([
         [1/2, 1/2],
@@ -52,26 +46,29 @@ def data_generator(SAMPLE_AMOUNT, SIGMA = 1, seedCode = 100, b2_effect=False):
 
     Y_fix = np.matmul(X1,B1) + np.matmul(X2,B2)
 
+    
     EPSI1_latent_t = np.random.uniform(0,1,SAMPLE_AMOUNT)
     EPSI2_latent_t = np.random.uniform(0,1,SAMPLE_AMOUNT)
 
     EPSI1_transed = H[0,0] * EPSI1_latent_t + H[0,1] * EPSI2_latent_t
     EPSI2_transed = H[1,0] * EPSI1_latent_t + H[1,1] * EPSI2_latent_t
 
-    EPSI1 = norm.ppf(EPSI1_transed, loc=0, scale=SIGMA)
-    EPSI2 = norm.ppf(EPSI2_transed, loc=0, scale=SIGMA)
+    
+    # scale effect
+    for i in range(SAMPLE_AMOUNT):
+        
+        EPSI1 = norm.ppf(EPSI1_transed[i], loc=0, scale=SIGMA * np.abs(X2[i,0]))
+        EPSI2 = norm.ppf(EPSI2_transed[i], loc=0, scale=SIGMA * np.abs(X2[i,1]))
 
-    Y_error1 = H[0,0] * EPSI1 + H[1,0] * EPSI2
-    Y_error2 = H[0,1] * EPSI1 + H[1,1] * EPSI2
+        Y_error1 = H[0,0] * EPSI1 + H[1,0] * EPSI2
+        Y_error2 = H[0,1] * EPSI1 + H[1,1] * EPSI2
 
-    # print(Y)
-    Y[:,0] = Y_fix[:,0] + Y_error1
-    Y[:,1] = Y_fix[:,1] + Y_error2
-
-    # print(Y)
-
+    
+        Y[i,0] = Y_fix[i,0] + Y_error1
+        Y[i,1] = Y_fix[i,1] + Y_error2
 
     return (X1, X2, Y)
+
 
 # X1 : n * p
 # X2 : n * q
@@ -167,7 +164,7 @@ if __name__ == "__main__":
     for exp in range(EXP_TIME):
         print("experiment : ",exp)
         # X1, X2, Y = data_generator(SAMPLE_AMOUNT, seedCode = 500+exp, SIGMA = 1)
-        X1, X2, Y = data_generator(SAMPLE_AMOUNT, seedCode = 500+exp, SIGMA = 1, b2_effect= True)
+        X1, X2, Y = data_generator_X2(SAMPLE_AMOUNT, seedCode = 500+exp, SIGMA = 1)
         T_val = OT_Tscore_2d(X1, X2, Y, t_level=T_LEVELS)
 
         p_val = chi2_p(T_val)
